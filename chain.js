@@ -1,6 +1,29 @@
 const axios = require("axios");
 const fs = require("fs");
 
+const findChain = async (chainName) => {
+  const regex = new RegExp("^" + chainName.toLowerCase());
+  try {
+    const response = await axios.get(`https://chainid.network/chains.json`);
+    if (response.data) {
+      return response.data.filter(
+        (chain) =>
+          regex.test(chain.name.toLowerCase()) ||
+          regex.test(chain.chain.toLowerCase()) ||
+          regex.test(chain.shortName.toLowerCase())
+      );
+    }
+  } catch {
+    chains = require("./chains.json");
+    return chains.filter(
+      (chain) =>
+        regex.test(chain.name.toLowerCase()) ||
+        regex.test(chain.chain.toLowerCase()) ||
+        regex.test(chain.shortName.toLowerCase())
+    );
+  }
+};
+
 const listChains = async () => {
   try {
     const response = await axios.get(`https://chainid.network/chains.json`);
@@ -23,15 +46,15 @@ const addChain = async (chainName) => {
     console.error(`Error fetching chain information: Using Local...`);
   }
   if (chainData) {
-    console.log("Found data");
     const chainInfo = chainData.find(
       (chain) =>
         chain.name.toLowerCase() === chainName.toLowerCase() ||
         chain.chain.toLowerCase() === chainName.toLowerCase() ||
         chain.shortName.toLowerCase() === chainName.toLowerCase()
     );
-    console.log(chainInfo);
+    // console.log(chainInfo);
     if (chainInfo) {
+      console.log("Found Chain Info...");
       const configPath = "./hardhat.config.js" || "";
       if (fs.existsSync(configPath)) {
         fs.readFile(configPath, "utf8", (err, data) => {
@@ -44,14 +67,14 @@ const addChain = async (chainName) => {
           let updatedObject;
           try {
             // Assuming module.exports is on the last line of the file
-            console.log(data);
-            //FIx regex to get proper export statement
             const exportsStatement = data.match(
               /module\.exports\s*=\s*({[\s\S]*?});/
             );
-            console.log("export Statement", exportsStatement);
             existingObject = eval("(" + exportsStatement[1] + ")");
-            console.log("exisiting Module", existingObject);
+            // UNCOMMENT TO DEBUG
+            // console.log(data);
+            // console.log("export Statement", exportsStatement);
+            // console.log("exisiting Module", existingObject);
           } catch (parseError) {
             console.log(data);
             console.error(
@@ -69,7 +92,6 @@ const addChain = async (chainName) => {
             updatedObject = existingObject;
           } else {
             // Merge the new object with the existing object
-            console.log("here2");
             updatedObject = {
               ...existingObject,
               ...{
@@ -114,13 +136,19 @@ const main = async () => {
   } else if (userArgs[0] == "list") {
     chains = await listChains();
     console.log(chains);
+  } else if (userArgs[0] == "find" && userArgs[1]) {
+    chain = await findChain(userArgs[1]);
+    console.log(chain);
   } else if (userArgs[0] == "help") {
     console.log("Available Commands:");
     console.log("list");
     console.log("add");
+    console.log("find");
+    console.log("help");
   } else {
     console.log("Usage: chains.js add <chain_name>");
     console.log("Usage: chains.js list:");
+    console.log("Usage: chains.js find <chain_name>");
   }
 };
 
